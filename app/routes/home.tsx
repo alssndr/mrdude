@@ -119,9 +119,13 @@ export default function R3FLocalGLTFViewer(): React.ReactElement {
           <select
             value={selectedVariant}
             onChange={(e) => {
-              setSelectedVariant(e.target.value as ModelVariant);
-              setEnabledAnimations(new Set());
-              setAvailableAnimations([]);
+              const newVariant = e.target.value as ModelVariant;
+              setSelectedVariant(newVariant);
+              // Reset animazioni e lista DOPO il cambio variante
+              setTimeout(() => {
+                setEnabledAnimations(new Set());
+                setAvailableAnimations([]);
+              }, 0);
             }}
             className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition text-white border-none outline-none"
             title="Seleziona variante modello"
@@ -163,7 +167,7 @@ export default function R3FLocalGLTFViewer(): React.ReactElement {
               {/* Center recenters and normalizes the model around the origin */}
               <Center top>
                 <Model 
-                  key={activeUrl}
+                  key={selectedVariant}
                   url={activeUrl} 
                   enabledAnimations={enabledAnimations}
                   onAnimationsDiscovered={(names) => {
