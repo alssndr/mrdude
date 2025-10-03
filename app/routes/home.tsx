@@ -179,7 +179,7 @@ export default function R3FLocalGLTFViewer(): React.ReactElement {
 
             {/* Image-based lighting con HDR personalizzato o preset */}
             {useHdrBackground ? (
-              <Environment files="/public/background.hdr" background />
+              <Environment files="/background.hdr" background />
             ) : (
               <Environment preset="sunset" background={false} />
             )}
