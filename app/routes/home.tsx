@@ -1,4 +1,4 @@
-import React, { useRef, useState, Suspense, useEffect } from "react";
+import React, { useRef, useState, Suspense, useEffect, useCallback } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Center, Stage, Environment, Html, useAnimations } from "@react-three/drei";
 import * as THREE from "three";
@@ -37,16 +37,29 @@ function Model({ url, enabledAnimations, onAnimationsDiscovered }: ModelProps) {
 
   // Controlla le animazioni in base a quelle abilitate
   useEffect(() => {
-    names.forEach((name: string) => {
-      const action = actions[name];
+    // Prima ferma tutte le animazioni
+    Object.values(actions).forEach(action => {
       if (action) {
-        if (enabledAnimations.has(name)) {
-          action.play();
-        } else {
-          action.stop();
-        }
+        action.stop();
       }
     });
+    
+    // Poi avvia solo quelle abilitate con reset
+    names.forEach((name: string) => {
+      const action = actions[name];
+      if (action && enabledAnimations.has(name)) {
+        action.reset().play();
+      }
+    });
+    
+    // Cleanup quando il componente viene smontato
+    return () => {
+      Object.values(actions).forEach(action => {
+        if (action) {
+          action.stop();
+        }
+      });
+    };
   }, [actions, names, enabledAnimations]);
 
   /*
@@ -103,9 +116,14 @@ export default function R3FLocalGLTFViewer(): React.ReactElement {
     useGLTF.preload?.(MODEL_VARIANTS[selectedVariant]);
   }, [selectedVariant]);
 
-
-
-
+  // useCallback per evitare re-render infiniti
+  const handleAnimationsDiscovered = useCallback((names: string[]) => {
+    setAvailableAnimations(names);
+    // Auto-abilita tutte le animazioni per ogni nuovo modello caricato
+    if (names.length > 0) {
+      setEnabledAnimations(new Set(names));
+    }
+  }, []);
 
   return (
     <div className="min-h-screen w-full bg-neutral-950 text-white flex flex-col">
@@ -120,12 +138,10 @@ export default function R3FLocalGLTFViewer(): React.ReactElement {
             value={selectedVariant}
             onChange={(e) => {
               const newVariant = e.target.value as ModelVariant;
+              // Reset immediato prima del cambio
+              setEnabledAnimations(new Set());
+              setAvailableAnimations([]);
               setSelectedVariant(newVariant);
-              // Reset animazioni e lista DOPO il cambio variante
-              setTimeout(() => {
-                setEnabledAnimations(new Set());
-                setAvailableAnimations([]);
-              }, 0);
             }}
             className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition text-white border-none outline-none"
             title="Seleziona variante modello"
@@ -148,7 +164,7 @@ export default function R3FLocalGLTFViewer(): React.ReactElement {
       {/* Canvas container */}
       <div className="relative flex-1">
         <Canvas
-          camera={{ position: [100, 6, 120], fov: 50 }}
+          camera={{ position: [80, 30, 150], fov: 50 }}
           dpr={[1, 2]}
           style={{ height: '100vh', width: '100%' }}
         >
@@ -165,18 +181,12 @@ export default function R3FLocalGLTFViewer(): React.ReactElement {
             {/* Stage provides soft lights and a ground; environment is set separately below */}
             <Stage intensity={1} environment={null} adjustCamera={false}>
               {/* Center recenters and normalizes the model around the origin */}
-              <Center top>
+              <Center>
                 <Model 
                   key={selectedVariant}
                   url={activeUrl} 
                   enabledAnimations={enabledAnimations}
-                  onAnimationsDiscovered={(names) => {
-                    setAvailableAnimations(names);
-                    // Auto-abilita tutte le animazioni per ogni nuovo modello caricato
-                    if (names.length > 0) {
-                      setEnabledAnimations(new Set(names));
-                    }
-                  }}
+                  onAnimationsDiscovered={handleAnimationsDiscovered}
                 />
               </Center>
             </Stage>
